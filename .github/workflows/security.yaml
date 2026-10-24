@@ -1,31 +1,28 @@
-name: CI - Build e Segurança
+name: SAST - Semgrep
 
-on: [pull_request, push]
+on: 
+  push:
+  pull_request:
 
 jobs:
-  continuous-integration:
+  sast:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Using Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: 20
 
-      - name: Install dependencies
-        working-directory: ./app
+      - name: Instalar dependências
+        working-directory: app
         run: npm ci
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Install Semgrep
+      - name: Instalar Semgrep
         run: pip install semgrep
 
-      - name: Run Semgrep
-        run: semgrep --config auto --error || true
+      - name: Rodar Semgrep
+        run: semgrep scan --config auto --error app/src
