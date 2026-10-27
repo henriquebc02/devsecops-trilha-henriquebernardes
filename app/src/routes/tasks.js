@@ -7,17 +7,51 @@ router.get("/", (req, res) => {
   res.json(db.listTasks());
 });
 
-// GET /api/tasks/filter?expr=<expressão> - filtro avançado de tarefas
+// GET /api/tasks/filter?field=done&value=true
 router.get("/filter", (req, res) => {
-  const { expr } = req.query;
-  if (!expr) return res.status(400).json({ error: "Parâmetro 'expr' é obrigatório" });
-  try {
-    const tasks = db.listTasks();
-    const result = tasks.filter((t) => eval(expr));
-    res.json(result);
-  } catch (err) {
-    res.status(400).json({ error: "Expressão inválida", details: err.message });
+  const { field, value } = req.query;
+
+  const allowedFields = ["id", "title", "done", "owner"];
+
+  if (
+    typeof field !== "string" ||
+    !allowedFields.includes(field) ||
+    typeof value !== "string"
+  ) {
+    return res.status(400).json({
+      error: "Filtro inválido"
+    });
   }
+
+  let filterValue = value;
+
+  if (field === "id") {
+    filterValue = Number(value);
+
+    if (!Number.isSafeInteger(filterValue) || filterValue <= 0) {
+      return res.status(400).json({
+        error: "ID inválido"
+      });
+    }
+  }
+
+  if (field === "done") {
+    if (value !== "true" && value !== "false") {
+      return res.status(400).json({
+        error: "O campo done deve ser true ou false"
+      });
+    }
+
+    filterValue = value === "true";
+  }
+
+  const tasks = db.listTasks();
+
+  const result = tasks.filter((task) => {
+    return task[field] === filterValue;
+  });
+
+  res.json(result);
 });
 
 // GET /api/tasks/:id - busca uma tarefa pelo id
