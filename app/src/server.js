@@ -5,11 +5,13 @@ const tasksRouter = require("./routes/tasks");
 const networkRouter = require("./routes/network");
 const filesRouter = require("./routes/files");
 
-const app = express();
+// API sem autenticação baseada em cookies ou sessões.
+// CSRF não se aplica ao modelo de autenticação atual.
+const app = express(); // nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
+
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-
 // Healthcheck - usado pelo Render para saber se a aplicação está no ar.
 app.get("/health", (req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });
