@@ -1,0 +1,28 @@
+name: SAST - Semgrep
+
+on: 
+  push:
+  pull_request:
+
+jobs:
+  sast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        working-directory: app
+        run: npm ci
+
+      - name: Instalar Semgrep
+        run: pip install semgrep
+
+      - name: Rodar Semgrep
+        run: semgrep scan --config auto --error app/
