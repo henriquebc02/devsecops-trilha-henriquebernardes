@@ -14,17 +14,39 @@ router.get("/:filename", (req, res) => {
     filename === "." ||
     filename === ".."
   ) {
-    return res.status(400).json({ error: "Nome de arquivo inválido" });
+    return res.status(400).json({
+      error: "Nome de arquivo inválido"
+    });
   }
 
-  const filePath = path.join(UPLOADS_DIR, filename);
-
-  fs.readFile(filePath, "utf8", (err, data) => {
+  fs.readdir(UPLOADS_DIR, { withFileTypes: true }, (err, entries) => {
     if (err) {
-      return res.status(404).json({ error: "Arquivo não encontrado" });
+      return res.status(500).json({
+        error: "Erro ao acessar diretório"
+      });
     }
 
-    res.type("text/plain").send(data);
+    const file = entries.find(
+      (entry) => entry.isFile() && entry.name === filename
+    );
+
+    if (!file) {
+      return res.status(404).json({
+        error: "Arquivo não encontrado"
+      });
+    }
+
+    const filePath = path.join(UPLOADS_DIR, file.name);
+
+    fs.readFile(filePath, "utf8", (readErr, data) => {
+      if (readErr) {
+        return res.status(404).json({
+          error: "Arquivo não encontrado"
+        });
+      }
+
+      res.type("text/plain").send(data);
+    });
   });
 });
 
