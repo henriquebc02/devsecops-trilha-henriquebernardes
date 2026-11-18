@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # SemGrep: análise estática de código
       - name: Checkout do código
         uses: actions/checkout@v4
 
@@ -25,4 +26,51 @@ jobs:
         run: pip install semgrep
 
       - name: Rodar Semgrep
-        run: semgrep scan --config auto --error app/src
+        run: semgrep scan --config auto --error app/
+
+      # Trivy: análise das dependências
+      - name: Trivy - SCA
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ./app
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table
+
+      # Construção da imagem Docker
+      - name: Construir imagem Docker
+        run: docker build -t saci-api:latest ./app
+
+      # Trivy: análise da imagem Docker
+      - name: Trivy - Imagem Docker
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: image
+          image-ref: saci-api:latest
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table
+
+      # Gitleaks: detecção de segredos
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy no Render
+  deploy:
+    needs: sast
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Acionar deploy no Render
+        env:
+          DEPLOY_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$DEPLOY_URL"
+          curl --fail --show-error --silent \
+            --request POST "$DEPLOY_URL"
