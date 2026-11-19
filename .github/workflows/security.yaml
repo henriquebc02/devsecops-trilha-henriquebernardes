@@ -65,12 +65,13 @@ jobs:
       - name: Checkout com histórico completo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # necessário para varrer todo o histórico
+          fetch-depth: 0
 
-      - name: Rodar Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Gitleaks - scan do histórico completo
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" \
+            zricethezav/gitleaks:v8.24.3 detect \
+            --source /repo --redact -v --exit-code 2
 
   # Gate 4: Scan da imagem Docker
   image-scan:
