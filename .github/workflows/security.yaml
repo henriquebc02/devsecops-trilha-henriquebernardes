@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy - scan de dependências (SCA)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: app/
@@ -50,7 +50,7 @@ jobs:
           exit-code: '1'
 
       - name: Trivy - scan do Dockerfile (misconfig)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: app/
@@ -84,7 +84,7 @@ jobs:
         run: docker build -t app:${{ github.sha }} app/
 
       - name: Trivy - scan da imagem
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: app:${{ github.sha }}
           severity: CRITICAL

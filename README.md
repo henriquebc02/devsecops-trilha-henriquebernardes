@@ -1,1 +1,0 @@
-# devsecops-trilha-henriquebernardes
