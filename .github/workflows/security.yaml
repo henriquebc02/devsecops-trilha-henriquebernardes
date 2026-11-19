@@ -27,10 +27,13 @@ jobs:
 
       - name: Rodar Semgrep
         run: semgrep scan --config auto --error app/
+  sca:
+    runs-on: ubuntu-latest
 
+    steps:
       # Trivy: análise das dependências
       - name: Trivy - SCA
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: ./app
@@ -45,7 +48,7 @@ jobs:
 
       # Trivy: análise da imagem Docker
       - name: Trivy - Imagem Docker
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: saci-api:latest
