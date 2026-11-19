@@ -1,15 +1,20 @@
-name: SAST - Semgrep
 
-on: 
+name: Pipeline DevSecOps
+
+on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
+  #Implementação da análise prévia do código (SAST)
   sast:
     runs-on: ubuntu-latest
 
     steps:
-      # SemGrep: análise estática de código
+      # Semgrep: análise estática de código
       - name: Checkout do código
         uses: actions/checkout@v4
 
@@ -27,12 +32,21 @@ jobs:
 
       - name: Rodar Semgrep
         run: semgrep scan --config auto --error app/
+
+  #Implementação da análise de dependências (SCA) e detecção de segredos (Gitleaks)
   sca:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       # Trivy: análise das dependências
       - name: Trivy - SCA
+        id: trivy_sca
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
@@ -44,10 +58,15 @@ jobs:
 
       # Construção da imagem Docker
       - name: Construir imagem Docker
+        id: docker_build
+        continue-on-error: true
         run: docker build -t saci-api:latest ./app
 
       # Trivy: análise da imagem Docker
       - name: Trivy - Imagem Docker
+        id: trivy_image
+        if: steps.docker_build.outcome == 'success'
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
@@ -59,13 +78,39 @@ jobs:
 
       # Gitleaks: detecção de segredos
       - name: Gitleaks
+        id: gitleaks
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Verificação final dos resultados
+      - name: Verificar gates de segurança
+        if: always()
+        env:
+          TRIVY_SCA: ${{ steps.trivy_sca.outcome }}
+          DOCKER_BUILD: ${{ steps.docker_build.outcome }}
+          TRIVY_IMAGE: ${{ steps.trivy_image.outcome }}
+          GITLEAKS: ${{ steps.gitleaks.outcome }}
+        run: |
+          echo "Trivy SCA: $TRIVY_SCA"
+          echo "Docker Build: $DOCKER_BUILD"
+          echo "Trivy Imagem: $TRIVY_IMAGE"
+          echo "Gitleaks: $GITLEAKS"
+
+          if [[ "$TRIVY_SCA" != "success" ||
+                "$DOCKER_BUILD" != "success" ||
+                "$TRIVY_IMAGE" != "success" ||
+                "$GITLEAKS" != "success" ]]; then
+            echo "Um ou mais gates de segurança falharam."
+            exit 1
+          fi
+
+          echo "Todos os gates foram aprovados."
+
   # Deploy no Render
   deploy:
-    needs: sast
+    needs: [sast, sca]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
