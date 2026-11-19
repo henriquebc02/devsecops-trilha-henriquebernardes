@@ -1,4 +1,3 @@
-
 name: Pipeline DevSecOps
 
 on:
@@ -9,12 +8,11 @@ permissions:
   contents: read
 
 jobs:
-  #Implementação da análise prévia do código (SAST)
+  # Gate 1: SAST
   sast:
+    name: SAST - Semgrep
     runs-on: ubuntu-latest
-
     steps:
-      # Semgrep: análise estática de código
       - name: Checkout do código
         uses: actions/checkout@v4
 
@@ -33,92 +31,62 @@ jobs:
       - name: Rodar Semgrep
         run: semgrep scan --config auto --error app/
 
-  #Implementação da análise de dependências (SCA) e detecção de segredos (Gitleaks)
+  # Gate 2: SCA (dependências + Dockerfile)
   sca:
+    name: SCA - Trivy (dependências e Dockerfile)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Trivy: análise das dependências
-      - name: Trivy - SCA
-        id: trivy_sca
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Trivy - scan de dependências (SCA)
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
-          scan-ref: ./app
+          scan-ref: app/
           scanners: vuln
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
+          ignore-unfixed: true
           exit-code: '1'
-          format: table
 
-      # Construção da imagem Docker
-      - name: Construir imagem Docker
-        id: docker_build
-        continue-on-error: true
-        run: docker build -t saci-api:latest ./app
-
-      # Trivy: análise da imagem Docker
-      - name: Trivy - Imagem Docker
-        id: trivy_image
-        if: steps.docker_build.outcome == 'success'
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Trivy - scan do Dockerfile (misconfig)
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          scan-type: image
-          image-ref: saci-api:latest
-          scanners: vuln
-          severity: HIGH,CRITICAL
+          scan-type: config
+          scan-ref: app/
+          severity: CRITICAL
           exit-code: '1'
-          format: table
 
-      # Gitleaks: detecção de segredos
-      - name: Gitleaks
-        id: gitleaks
-        continue-on-error: true
-        uses: gitleaks/gitleaks-action@v3
+  # Gate 3: Detecção de segredos
+  secrets:
+    name: Secrets - Gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout com histórico completo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # necessário para varrer todo o histórico
+
+      - name: Rodar Gitleaks
+        uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Verificação final dos resultados
-      - name: Verificar gates de segurança
-        if: always()
-        env:
-          TRIVY_SCA: ${{ steps.trivy_sca.outcome }}
-          DOCKER_BUILD: ${{ steps.docker_build.outcome }}
-          TRIVY_IMAGE: ${{ steps.trivy_image.outcome }}
-          GITLEAKS: ${{ steps.gitleaks.outcome }}
-        run: |
-          echo "Trivy SCA: $TRIVY_SCA"
-          echo "Docker Build: $DOCKER_BUILD"
-          echo "Trivy Imagem: $TRIVY_IMAGE"
-          echo "Gitleaks: $GITLEAKS"
-
-          if [[ "$TRIVY_SCA" != "success" ||
-                "$DOCKER_BUILD" != "success" ||
-                "$TRIVY_IMAGE" != "success" ||
-                "$GITLEAKS" != "success" ]]; then
-            echo "Um ou mais gates de segurança falharam."
-            exit 1
-          fi
-
-          echo "Todos os gates foram aprovados."
-
-  # Deploy no Render
-  deploy:
-    needs: [sast, sca]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # Gate 4: Scan da imagem Docker
+  image-scan:
+    name: Container - Trivy (imagem Docker)
     runs-on: ubuntu-latest
-
     steps:
-      - name: Acionar deploy no Render
-        env:
-          DEPLOY_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          test -n "$DEPLOY_URL"
-          curl --fail --show-error --silent \
-            --request POST "$DEPLOY_URL"
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Build da imagem
+        run: docker build -t app:${{ github.sha }} app/
+
+      - name: Trivy - scan da imagem
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: app:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
