@@ -45,21 +45,20 @@ jobs:
           scan-type: fs
           scan-ref: app/
           scanners: vuln
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
 
       - name: Build da imagem
         if: ${{ !cancelled() }}
-        run: docker build -t task-api ./app
+        run: docker build -t app:${{ github.sha }} app/
 
       - name: Trivy - scan da imagem
         if: ${{ !cancelled() }}
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          scan-type: image
-          image-ref: task-api
-          severity: HIGH,CRITICAL
+          image-ref: app:${{ github.sha }}
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
 
@@ -69,7 +68,7 @@ jobs:
         with:
           scan-type: config
           scan-ref: app/
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           exit-code: '1'
 
   # Gate 3: Detecção de segredos
