@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy - scan de dependências (SCA)
-        uses: aquasecurity/trivy-action@<SHA-DO-COMMIT>
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           scan-type: fs
           scan-ref: app/
@@ -53,7 +53,7 @@ jobs:
         run: docker build -t task-api ./app
 
       - name: Trivy - scan da imagem
-        uses: aquasecurity/trivy-action@<SHA-DO-COMMIT>
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           scan-type: image
           image-ref: task-api
@@ -62,13 +62,13 @@ jobs:
           exit-code: '1'
 
       - name: Trivy - scan do Dockerfile (misconfig)
-        uses: aquasecurity/trivy-action@<SHA-DO-COMMIT>
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           scan-type: config
           scan-ref: app/
           severity: HIGH,CRITICAL
           exit-code: '1'
-          
+
   # Gate 3: Detecção de segredos
   secrets:
     name: Secrets - Gitleaks
