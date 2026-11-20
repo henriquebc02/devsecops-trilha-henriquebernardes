@@ -3,12 +3,12 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev || npm install --omit=dev
 
-COPY --chown=node:node . .
+COPY . .
 
 EXPOSE 3000
 
 USER node
 
-CMD ["node", "src/server.js"]
+CMD ["node", "src/server.js"]   
